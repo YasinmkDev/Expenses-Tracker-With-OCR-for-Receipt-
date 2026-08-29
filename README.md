@@ -4,6 +4,27 @@ A high-performance, offline-first mobile expense tracker powered by **on-device 
 
 ---
 
+## 📱 Visual Showcase & Product Walkthrough
+
+<div align="center">
+  <img src="./screenshots/first_image_withScreenShotsAndTextOnRight.png" alt="Ledger AI App Overview" width="100%" />
+</div>
+
+<br/>
+
+| 📲 Live Mobile Experience | 🔍 AI-Powered OCR Scanner |
+|---|---|
+| <img src="./screenshots/appOpenInPhone.png" alt="Live App In Phone" width="100%" /> | <img src="./screenshots/imageShowingAiPoweredORC.png" alt="AI OCR Scanner" width="100%" /> |
+| **Interactive Dashboard & Budget Health** | **Instant Receipt Ingestion & Line-Item Extraction** |
+
+<br/>
+
+<div align="center">
+  <img src="./screenshots/imageShowingProblemAndSolutionUsingThisApp.png" alt="Problem vs Solution Architecture" width="100%" />
+</div>
+
+---
+
 ## 🌟 Key Highlights & Architectural Features
 
 ### 📸 1. AI-Powered Receipt Ingestion & OCR Vision
@@ -46,6 +67,7 @@ A high-performance, offline-first mobile expense tracker powered by **on-device 
 
 ```
 ledger_react_native/
+├── screenshots/             # High-res product screenshots & feature diagrams
 ├── assets/                  # App icons, splash screens, and demo assets
 ├── src/
 │   ├── app/                 # Expo Router file-based screens & navigation
@@ -99,4 +121,5 @@ npx expo start
 
 ## 📄 License
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
-"# Expenses-Tracker-With-OCR-for-Receipt-" 
+
+"# Expenses-Tracker-With-OCR-for-Receipt-"
