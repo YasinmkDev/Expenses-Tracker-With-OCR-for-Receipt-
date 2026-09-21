@@ -1,29 +1,24 @@
-import React, { useState, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  Sparkles,
-  TrendingDown,
-  TrendingUp,
-  Flame,
-  ShieldCheck,
-  BarChart3,
-  ChevronDown,
-  ChevronUp,
-  Check,
-  Receipt,
-  Layers,
-  ArrowUpRight,
-} from 'lucide-react-native';
+import { CategoryIcon } from '@/components/native/CategoryIcon';
 import { Colors } from '@/constants/theme';
 import { useLedgerStore } from '@/store/ledgerStore';
-import { CategoryIcon } from '@/components/native/CategoryIcon';
+import {
+    BarChart3,
+    Check,
+    ChevronDown,
+    ChevronUp,
+    Flame,
+    Sparkles,
+    TrendingUp
+} from 'lucide-react-native';
+import { useMemo, useState } from 'react';
+import {
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SEGMENT_COLORS = [
   '#2ECC87', // Precision Emerald
@@ -42,62 +37,97 @@ export default function InsightsScreen() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  const { transactions, computedBudgets, totalMonthlySpend, monthlyLimit, dailyBurnRate, daysRemaining } =
+  const { transactions, computedBudgets, monthlyLimit } =
     useLedgerStore();
 
-  // 1. Timeframe filtered transactions
+  // 1. Use calendar periods so the selector changes the actual reporting window.
+  const periodRange = useMemo(() => {
+    const now = new Date();
+    let start: Date;
+    if (timeframe === 'Week') {
+      const daysFromMonday = (now.getDay() + 6) % 7;
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysFromMonday);
+    } else if (timeframe === 'Month') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else {
+      start = new Date(now.getFullYear(), 0, 1);
+    }
+    return { start: start.getTime(), end: now.getTime() };
+  }, [timeframe]);
+
   const filteredTransactions = useMemo(() => {
-    const now = Date.now();
-    const rangeMs =
-      timeframe === 'Week'
-        ? 7 * 24 * 60 * 60 * 1000
-        : timeframe === 'Month'
-        ? 30 * 24 * 60 * 60 * 1000
-        : 365 * 24 * 60 * 60 * 1000;
-    return transactions.filter((t) => now - (t.createdAt || 0) <= rangeMs);
-  }, [transactions, timeframe]);
+    return transactions.filter((transaction) => {
+      const createdAt = transaction.createdAt || 0;
+      return createdAt >= periodRange.start && createdAt <= periodRange.end;
+    });
+  }, [transactions, periodRange]);
 
   const totalPeriodSpend = useMemo(() => {
     return filteredTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
   }, [filteredTransactions]);
+  const periodDays = Math.max(1, Math.ceil((periodRange.end - periodRange.start) / (24 * 60 * 60 * 1000)) + 1);
+  const periodAverageSpend = totalPeriodSpend / periodDays;
 
-  // 2. Real Daily Spending Histogram Data (Last 7 Days)
-  const dailyChartData = useMemo(() => {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  // 2. Bucket the selected period into daily, monthly, or yearly points.
+  const periodChartData = useMemo(() => {
     const now = new Date();
-    const result = [];
+    const result: { label: string; date: string; spend: number; txCount: number }[] = [];
+    const bucketCount = timeframe === 'Week' ? 7 : timeframe === 'Month' ? Math.ceil(now.getDate() / 7) : 12;
 
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(now.getDate() - i);
-      const dayName = days[d.getDay()];
-      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-      const dayEnd = dayStart + 24 * 60 * 60 * 1000;
-
-      const dayTxs = transactions.filter((t) => {
-        const tTime = t.createdAt || dayStart;
-        return tTime >= dayStart && tTime < dayEnd;
+    for (let index = 0; index < bucketCount; index += 1) {
+      let bucketStart: Date;
+      let bucketEnd: Date;
+      if (timeframe === 'Year') {
+        bucketStart = new Date(now.getFullYear(), index, 1);
+        bucketEnd = new Date(now.getFullYear(), index + 1, 1);
+      } else if (timeframe === 'Month') {
+        bucketStart = new Date(now.getFullYear(), now.getMonth(), index * 7 + 1);
+        bucketEnd = new Date(now.getFullYear(), now.getMonth(), index * 7 + 8);
+      } else {
+        const dayOffset = timeframe === 'Week'
+          ? index - ((now.getDay() + 6) % 7)
+          : index;
+        bucketStart = new Date(now.getFullYear(), now.getMonth(), timeframe === 'Week' ? now.getDate() + dayOffset : dayOffset + 1);
+        bucketEnd = new Date(bucketStart.getFullYear(), bucketStart.getMonth(), bucketStart.getDate() + 1);
+      }
+      const bucketStartTime = bucketStart.getTime();
+      const bucketEndTime = bucketEnd.getTime();
+      const bucketTransactions = filteredTransactions.filter((transaction) => {
+        const createdAt = transaction.createdAt || 0;
+        return createdAt >= bucketStartTime && createdAt < bucketEndTime;
       });
-
-      const daySpend = dayTxs.reduce((sum, t) => sum + (t.amount || 0), 0);
+      const bucketSpend = bucketTransactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
       result.push({
-        label: dayName,
-        date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        spend: Math.round(daySpend * 100) / 100,
-        txCount: dayTxs.length,
+        label: timeframe === 'Year'
+          ? bucketStart.toLocaleDateString('en-US', { month: 'short' })
+          : timeframe === 'Month'
+          ? `W${index + 1}`
+          : bucketStart.toLocaleDateString('en-US', { weekday: 'short' }),
+        date: timeframe === 'Year'
+          ? bucketStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+          : timeframe === 'Month'
+          ? `${bucketStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(Math.min(bucketEnd.getTime() - 1, new Date(now.getFullYear(), now.getMonth() + 1, 0).getTime())).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+          : bucketStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        spend: Math.round(bucketSpend * 100) / 100,
+        txCount: bucketTransactions.length,
       });
     }
 
     const maxSpend = Math.max(...result.map((r) => r.spend), 1);
     return { data: result, maxSpend };
-  }, [transactions]);
+  }, [filteredTransactions, timeframe]);
 
   // 3. Category Allocation Weights & Ranking
   const enrichedCategories = useMemo(() => {
+    const periodCategorySpend = filteredTransactions.reduce<Record<string, number>>((totals, transaction) => {
+      totals[transaction.category] = (totals[transaction.category] || 0) + (transaction.amount || 0);
+      return totals;
+    }, {});
     return computedBudgets.map((cat, idx) => {
+      const periodSpent = periodCategorySpend[cat.name] || 0;
       const pctOfCap = Math.min(100, Math.round((cat.spent / (cat.budget || 1)) * 100));
       const shareOfTotal =
-        totalMonthlySpend > 0 ? Math.round((cat.spent / totalMonthlySpend) * 100) : 0;
+        totalPeriodSpend > 0 ? Math.round((periodSpent / totalPeriodSpend) * 100) : 0;
       const color = SEGMENT_COLORS[idx % SEGMENT_COLORS.length];
 
       let velocityStatus: 'critical' | 'warning' | 'optimal' = 'optimal';
@@ -106,13 +136,14 @@ export default function InsightsScreen() {
 
       return {
         ...cat,
+        spent: Math.round(periodSpent * 100) / 100,
         pctOfCap,
         shareOfTotal,
         color,
         velocityStatus,
       };
     }).sort((a, b) => b.spent - a.spent);
-  }, [computedBudgets, totalMonthlySpend]);
+  }, [computedBudgets, filteredTransactions, totalPeriodSpend]);
 
   // Active highlighted category for the detail lens
   const activeCategory = useMemo(() => {
@@ -125,9 +156,8 @@ export default function InsightsScreen() {
 
   // Projected End-of-Month Run
   const now = new Date();
-  const dayOfMonth = Math.max(1, now.getDate());
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const projectedMonthlyTotal = Math.round(dailyBurnRate * daysInMonth);
+  const projectedMonthlyTotal = Math.round(periodAverageSpend * daysInMonth);
   const projectedSurplus = monthlyLimit - projectedMonthlyTotal;
 
   return (
@@ -170,8 +200,8 @@ export default function InsightsScreen() {
                 <Text style={styles.chartTitle}>Spend Distribution Histogram</Text>
                 <Text style={styles.chartSubtitle}>
                   {selectedBarIdx !== null
-                    ? `${dailyChartData.data[selectedBarIdx].date}: $${dailyChartData.data[selectedBarIdx].spend.toFixed(2)} (${dailyChartData.data[selectedBarIdx].txCount} txs)`
-                    : `7-Day Rolling Volume: $${totalPeriodSpend.toFixed(2)}`}
+                    ? `${periodChartData.data[selectedBarIdx].date}: $${periodChartData.data[selectedBarIdx].spend.toFixed(2)} (${periodChartData.data[selectedBarIdx].txCount} txs)`
+                    : `${timeframe} Volume: $${totalPeriodSpend.toFixed(2)}`}
                 </Text>
               </View>
             </View>
@@ -184,10 +214,10 @@ export default function InsightsScreen() {
 
           {/* Bar Chart Visualization */}
           <View style={styles.barsContainer}>
-            {dailyChartData.data.map((item, idx) => {
-              const heightPct = Math.max(8, Math.min(100, Math.round((item.spend / dailyChartData.maxSpend) * 100)));
+            {periodChartData.data.map((item, idx) => {
+              const heightPct = Math.max(8, Math.min(100, Math.round((item.spend / periodChartData.maxSpend) * 100)));
               const isSelected = selectedBarIdx === idx;
-              const isMax = item.spend === dailyChartData.maxSpend && item.spend > 0;
+              const isMax = item.spend === periodChartData.maxSpend && item.spend > 0;
 
               return (
                 <TouchableOpacity
@@ -223,13 +253,13 @@ export default function InsightsScreen() {
           {/* Chart Summary Footer */}
           <View style={styles.chartFooter}>
             <View style={styles.chartStat}>
-              <Text style={styles.chartStatLabel}>DAILY AVERAGE</Text>
-              <Text style={styles.chartStatValue}>${(totalPeriodSpend / 7).toFixed(2)}</Text>
+              <Text style={styles.chartStatLabel}>{timeframe === 'Year' ? 'MONTHLY AVERAGE' : timeframe === 'Month' ? 'WEEKLY AVERAGE' : 'DAILY AVERAGE'}</Text>
+              <Text style={styles.chartStatValue}>${(totalPeriodSpend / periodChartData.data.length).toFixed(2)}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.chartStat}>
               <Text style={styles.chartStatLabel}>PEAK VOLUME</Text>
-              <Text style={styles.chartStatValue}>${dailyChartData.maxSpend.toFixed(2)}</Text>
+              <Text style={styles.chartStatValue}>${periodChartData.maxSpend.toFixed(2)}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.chartStat}>
@@ -247,8 +277,8 @@ export default function InsightsScreen() {
               <Text style={styles.matrixBadge}>CURRENT PACE</Text>
             </View>
             <Text style={styles.matrixLabel}>DAILY BURN RATE</Text>
-            <Text style={styles.matrixValue}>${dailyBurnRate.toFixed(2)}/day</Text>
-            <Text style={styles.matrixSub}>Computed across {dayOfMonth} elapsed days</Text>
+            <Text style={styles.matrixValue}>${periodAverageSpend.toFixed(2)}/day</Text>
+            <Text style={styles.matrixSub}>Based on the selected {timeframe.toLowerCase()} period</Text>
           </View>
 
           <View style={styles.matrixCard}>
@@ -283,14 +313,14 @@ export default function InsightsScreen() {
         <View style={styles.ribbonCard}>
           <View style={styles.ribbonHeader}>
             <Text style={styles.ribbonTitle}>PORTFOLIO OUTFLOW PROPORTION</Text>
-            <Text style={styles.ribbonSpend}>${totalMonthlySpend.toLocaleString()} Total</Text>
+            <Text style={styles.ribbonSpend}>${totalPeriodSpend.toLocaleString()} Total</Text>
           </View>
 
           {/* Continuous Multi-Color Ribbon */}
           <View style={styles.ribbonTrack}>
             {enrichedCategories.map((cat) => {
               const flexVal = Math.max(1, cat.shareOfTotal || (cat.spent > 0 ? 5 : 0));
-              if (cat.spent <= 0 && totalMonthlySpend > 0) return null;
+              if (cat.spent <= 0 && totalPeriodSpend > 0) return null;
               const isSelected = activeCategory?.id === cat.id;
 
               return (

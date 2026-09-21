@@ -1,23 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import { Colors } from '@/constants/theme';
+import { BackendService } from '@/services/backend';
+import { parseReceiptWithGemini } from '@/services/geminiOcr';
+import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
+import { Camera as CameraIcon, Image as ImageIcon, ScanLine, Sparkles, X } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
+    ActivityIndicator,
+    Alert,
+    Image,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, Sparkles, Image as ImageIcon, Camera as CameraIcon, ScanLine, ArrowUpRight } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import { Colors } from '@/constants/theme';
-import { parseReceiptWithGemini } from '@/services/geminiOcr';
 
 export default function ScannerModalScreen() {
   const router = useRouter();
   const [isScanning, setIsScanning] = useState(false);
   const [scanStage, setScanStage] = useState('READY TO SCAN RECEIPT');
+  const [scanProgress, setScanProgress] = useState(0);
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
+
+  const isNetworkError = (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error || '');
+    return /unable to resolve host|no address associated with hostname|network request failed|network error|failed to fetch|connection refused|timed out|timeout|offline/i.test(message);
+  };
 
   // Trigger camera on launch
   useEffect(() => {
@@ -28,18 +37,33 @@ export default function ScannerModalScreen() {
     return () => clearTimeout(timer);
   }, []);
 
-  const processImage = async (base64Data: string) => {
+  const processImage = async (base64Data: string, imageUri?: string, mimeType?: string) => {
+    const upload = await BackendService.reserveUpload();
+    if (!upload.allowed) {
+      Alert.alert(
+        'Upload Limit Reached',
+        'You have used all 3 receipt uploads for this account. Add expenses manually or continue with another account.',
+        [
+          { text: 'Enter Manually', onPress: () => router.replace('/(modal)/add-manual') },
+          { text: 'Close', style: 'cancel' },
+        ]
+      );
+      return;
+    }
     setIsScanning(true);
-    setScanStage('RUNNING OPTICAL TEXT RECOGNITION...');
+    setScanProgress(18);
+    if (imageUri) setPreviewUri(imageUri);
+    setScanStage(`UPLOADING DOCUMENT... ${upload.remaining} UPLOADS LEFT`);
     try {
-      const parsed = await parseReceiptWithGemini(base64Data);
+      setScanProgress(35);
+      const parsed = await parseReceiptWithGemini(base64Data, undefined, imageUri, mimeType);
 
       if (!parsed.isValidReceipt || (parsed.lineItems.length === 0 && parsed.total === 0)) {
         setIsScanning(false);
         setScanStage('ALIGN RECEIPT WITHIN FRAME');
         Alert.alert(
-          'No Receipt Detected',
-          'Could not detect legible receipt text or price totals in this photo. Please ensure the document is clear and well-lit.',
+          'Receipt Scan Failed',
+          parsed.errorMessage || 'Could not detect legible receipt text or price totals in this photo. Please ensure the document is clear and well-lit.',
           [
             { text: 'Retake Photo', onPress: handleLaunchCamera },
             { text: 'Enter Manually', onPress: () => router.replace('/(modal)/add-manual') },
@@ -49,8 +73,10 @@ export default function ScannerModalScreen() {
         return;
       }
 
+      setScanProgress(88);
       setScanStage('PARSING LINE ITEMS & TAX...');
       setTimeout(() => {
+        setScanProgress(100);
         setIsScanning(false);
         router.replace({
           pathname: '/(modal)/review',
@@ -60,12 +86,16 @@ export default function ScannerModalScreen() {
     } catch (e) {
       console.warn('OCR error:', e);
       setIsScanning(false);
+      setScanProgress(0);
       setScanStage('ALIGN RECEIPT WITHIN FRAME');
+      const offline = isNetworkError(e);
       Alert.alert(
-        'Scan Failed',
-        'Could not parse receipt from this image.',
+        offline ? 'No Internet Connection' : 'Receipt Scan Failed',
+        offline
+          ? 'An internet connection is required to upload and process this image. Check your Wi-Fi or mobile data, then try again.'
+          : e instanceof Error ? e.message : 'Could not parse receipt from this image.',
         [
-          { text: 'Try Again', onPress: handleLaunchCamera },
+          { text: 'Retry Scan', onPress: () => (previewUri ? processImage(base64Data, imageUri, mimeType) : handleLaunchCamera()) },
           { text: 'Manual Entry', onPress: () => router.replace('/(modal)/add-manual') },
         ]
       );
@@ -96,7 +126,8 @@ export default function ScannerModalScreen() {
       });
 
       if (!result.canceled && result.assets && result.assets[0]?.base64) {
-        await processImage(result.assets[0].base64);
+        setPreviewUri(result.assets[0].uri);
+        await processImage(result.assets[0].base64, result.assets[0].uri, result.assets[0].mimeType);
       } else {
         setScanStage('ALIGN RECEIPT WITHIN FRAME');
       }
@@ -122,7 +153,8 @@ export default function ScannerModalScreen() {
       });
 
       if (!result.canceled && result.assets && result.assets[0]?.base64) {
-        await processImage(result.assets[0].base64);
+        setPreviewUri(result.assets[0].uri);
+        await processImage(result.assets[0].base64, result.assets[0].uri, result.assets[0].mimeType);
       } else {
         setScanStage('ALIGN RECEIPT WITHIN FRAME');
       }
@@ -158,10 +190,19 @@ export default function ScannerModalScreen() {
 
           {/* Central Scanning Animation Icon */}
           <View style={styles.scanIconCenter}>
-            {isScanning ? (
+            {previewUri ? (
+              <Image source={{ uri: previewUri }} style={styles.previewImage} resizeMode="contain" />
+            ) : isScanning ? (
               <ActivityIndicator size="large" color={Colors.primary} />
             ) : (
               <ScanLine size={48} color={Colors.primaryLight} />
+            )}
+
+            {isScanning && previewUri && (
+              <View style={styles.scanOverlay}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={styles.progressText}>{scanProgress}% COMPLETE</Text>
+              </View>
             )}
           </View>
 
@@ -169,6 +210,7 @@ export default function ScannerModalScreen() {
           <View style={styles.scanningPill}>
             <Text style={styles.scanningText}>{scanStage}</Text>
           </View>
+
         </View>
 
         <Text style={styles.guideTitle}>Optical Receipt Scanning</Text>
@@ -274,13 +316,39 @@ const styles = StyleSheet.create({
   bl: { bottom: -1, left: -1, borderBottomWidth: 3, borderLeftWidth: 3, borderBottomLeftRadius: 16 },
   br: { bottom: -1, right: -1, borderBottomWidth: 3, borderRightWidth: 3, borderBottomRightRadius: 16 },
   scanIconCenter: {
+    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    borderRadius: 50,
+    width: 268,
+    height: 328,
+    borderRadius: 14,
+    overflow: 'hidden',
     backgroundColor: Colors.surfaceCard,
     borderWidth: 1,
     borderColor: Colors.borderLight,
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 14,
+  },
+  scanOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(5, 10, 18, 0.48)',
+  },
+  progressText: {
+    color: Colors.textPrimary,
+    fontFamily: 'Menlo',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
   scanningPill: {
     position: 'absolute',

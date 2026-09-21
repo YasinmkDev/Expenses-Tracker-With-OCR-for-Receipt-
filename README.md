@@ -106,6 +106,16 @@ cd ledger_react_native
 npm install
 ```
 
+### OCR and cloud sync configuration
+
+Copy `.env.example` to `.env` and fill in `EXPO_PUBLIC_PARSEUR_API_KEY` and `EXPO_PUBLIC_GEMINI_API_KEY`. The scan pipeline uploads the original camera image to Parseur mailbox `213962`, polls until Parseur finishes processing, sends the returned document text to Gemini for strict receipt/invoice JSON organization and categorization, then opens the existing review screen so the user can verify the result before saving.
+
+Supabase cloud sync uses the app-specific `ledger_transactions` table. Run `supabase/migrations/20260920000000_create_transactions.sql` in the SQL Editor, expose `ledger_transactions` through the Data API, enable your Auth provider, and fill in the Supabase environment variables. Cloud writes only happen for an authenticated Supabase user; otherwise the app continues using AsyncStorage offline.
+
+Authentication starts at the login screen with sign-in, account creation, or guest access. Each authenticated account receives three Parseur receipt uploads through `supabase/migrations/20260921000000_add_ledger_upload_limits.sql`. Guest mode also allows three uploads using local storage. Run both migrations in the Supabase SQL Editor before testing account-level limits.
+
+Do not commit `.env`. The Parseur and Gemini keys included in chat should be revoked and replaced before production use. Expo public variables are bundled into the mobile app, so production document processing and AI calls should eventually move behind a server-side endpoint.
+
 ### 2. Launch Development Server
 ```bash
 # Start Expo development server

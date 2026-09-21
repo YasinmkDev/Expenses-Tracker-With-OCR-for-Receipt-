@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Transaction, BudgetCategory, UserProfile } from '../types';
+import React, { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import { BackendService } from '../services/backend';
+import { SafeStorage } from '../services/safeStorage';
+import { BudgetCategory, Transaction, UserProfile } from '../types';
 
 const STORAGE_KEY_TX = '@ledger_app_transactions_v2';
 const STORAGE_KEY_BUDGETS = '@ledger_app_budgets_v2';
@@ -60,9 +61,9 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     async function loadData() {
       try {
         const [storedTx, storedBudgets, storedProfile] = await Promise.all([
-          AsyncStorage.getItem(STORAGE_KEY_TX),
-          AsyncStorage.getItem(STORAGE_KEY_BUDGETS),
-          AsyncStorage.getItem(STORAGE_KEY_PROFILE),
+          SafeStorage.getItem(STORAGE_KEY_TX),
+          SafeStorage.getItem(STORAGE_KEY_BUDGETS),
+          SafeStorage.getItem(STORAGE_KEY_PROFILE),
         ]);
 
         if (storedTx) {
@@ -131,7 +132,8 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const updated = [newTx, ...transactions];
     setTransactions(updated);
     try {
-      await AsyncStorage.setItem(STORAGE_KEY_TX, JSON.stringify(updated));
+      await SafeStorage.setItem(STORAGE_KEY_TX, JSON.stringify(updated));
+      await BackendService.saveTransaction(newTx);
     } catch (e) {
       console.warn('Failed to save transaction:', e);
     }
@@ -142,7 +144,9 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const updated = transactions.map((t) => (t.id === id ? { ...t, ...updates } : t));
     setTransactions(updated);
     try {
-      await AsyncStorage.setItem(STORAGE_KEY_TX, JSON.stringify(updated));
+      await SafeStorage.setItem(STORAGE_KEY_TX, JSON.stringify(updated));
+      const updatedTransaction = updated.find((transaction) => transaction.id === id);
+      if (updatedTransaction) await BackendService.saveTransaction(updatedTransaction);
     } catch (e) {
       console.warn('Failed to update transaction:', e);
     }
@@ -152,7 +156,8 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const updated = transactions.filter((t) => t.id !== id);
     setTransactions(updated);
     try {
-      await AsyncStorage.setItem(STORAGE_KEY_TX, JSON.stringify(updated));
+      await SafeStorage.setItem(STORAGE_KEY_TX, JSON.stringify(updated));
+      await BackendService.deleteTransaction(id);
     } catch (e) {
       console.warn('Failed to delete transaction:', e);
     }
@@ -168,7 +173,7 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const updated = [...budgets, newCat];
     setBudgets(updated);
     try {
-      await AsyncStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(updated));
+      await SafeStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(updated));
     } catch (e) {
       console.warn('Failed to save category:', e);
     }
@@ -179,7 +184,7 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const updated = budgets.filter((b) => b.id !== id);
     setBudgets(updated);
     try {
-      await AsyncStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(updated));
+      await SafeStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(updated));
     } catch (e) {
       console.warn('Failed to delete category:', e);
     }
@@ -189,7 +194,7 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const updated = budgets.map((b) => (b.id === id ? { ...b, ...updates } : b));
     setBudgets(updated);
     try {
-      await AsyncStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(updated));
+      await SafeStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(updated));
     } catch (e) {
       console.warn('Failed to update category:', e);
     }
@@ -199,7 +204,7 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const updatedProfile = { ...userProfile, monthlyBudgetLimit: limit };
     setUserProfile(updatedProfile);
     try {
-      await AsyncStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(updatedProfile));
+      await SafeStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(updatedProfile));
     } catch (e) {
       console.warn('Failed to update monthly limit:', e);
     }
@@ -208,7 +213,7 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const clearAllTransactions = async () => {
     setTransactions([]);
     try {
-      await AsyncStorage.removeItem(STORAGE_KEY_TX);
+      await SafeStorage.removeItem(STORAGE_KEY_TX);
     } catch (e) {
       console.warn('Failed to clear transactions:', e);
     }

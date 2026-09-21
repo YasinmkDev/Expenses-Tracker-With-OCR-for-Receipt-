@@ -1,8 +1,34 @@
-import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
+import { Colors } from '@/constants/theme';
+import { supabase } from '@/services/backend';
+import { SafeStorage } from '@/services/safeStorage';
+import { Redirect, Tabs } from 'expo-router';
 import { Home, LineChart, Receipt, Wallet } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Platform, View } from 'react-native';
 
 export default function TabLayout() {
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    async function checkAccess() {
+      const guest = await SafeStorage.getItem('@ledger_guest_session');
+      const session = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+      if (active) setAuthorized(Boolean(session.data.session || guest === 'true'));
+    }
+    checkAccess();
+    return () => { active = false; };
+  }, []);
+
+  if (authorized === false) return <Redirect href="/(auth)/login" />;
+  if (authorized === null) {
+    return (
+      <View style={{ flex: 1, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={Colors.primary} />
+      </View>
+    );
+  }
+
   return (
     <Tabs
       screenOptions={{

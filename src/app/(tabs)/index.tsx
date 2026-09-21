@@ -1,17 +1,19 @@
-import React from 'react';
+import { TransactionItem } from '@/components/native/TransactionItem';
+import { Colors } from '@/constants/theme';
+import { BackendService } from '@/services/backend';
+import { SafeStorage } from '@/services/safeStorage';
+import { useLedgerStore } from '@/store/ledgerStore';
+import { useRouter } from 'expo-router';
+import { ArrowUpRight, Camera, LogOut, Plus, ReceiptText, Sparkles, TrendingUp } from 'lucide-react-native';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Camera, Plus, Sparkles, TrendingUp, Bell, ReceiptText, ArrowUpRight } from 'lucide-react-native';
-import { Colors } from '@/constants/theme';
-import { TransactionItem } from '@/components/native/TransactionItem';
-import { useLedgerStore } from '@/store/ledgerStore';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -27,6 +29,24 @@ export default function HomeScreen() {
   const isUnderBudget = monthlyLimit >= totalMonthlySpend;
   const variance = Math.abs(monthlyLimit - totalMonthlySpend);
 
+  const handleSignOut = () => {
+    Alert.alert('Sign Out', 'Leave this Ledger session?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await BackendService.signOut();
+          } finally {
+            await SafeStorage.removeItem('@ledger_guest_session');
+            router.replace('/(auth)/login');
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -39,6 +59,14 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.subGreeting}>Welcome back, {userProfile.name}</Text>
           </View>
+          <TouchableOpacity
+            style={styles.signOutButton}
+            onPress={handleSignOut}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
+          >
+            <LogOut size={18} color={Colors.textMuted} />
+          </TouchableOpacity>
         </View>
 
         {/* Master Spend Card */}
@@ -181,6 +209,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 6,
+  },
+  signOutButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: Colors.surfaceCard,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   brandRow: {
     flexDirection: 'row',

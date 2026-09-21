@@ -1,26 +1,54 @@
-import React, { useState } from 'react';
+import { Colors } from '@/constants/theme';
+import { BackendService } from '@/services/backend';
+import { SafeStorage } from '@/services/safeStorage';
+import { useRouter } from 'expo-router';
+import { ArrowRight, Fingerprint, Lock, Mail, ShieldCheck, UserPlus } from 'lucide-react-native';
+import { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
+    Alert,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { ShieldCheck, Fingerprint, Lock, Mail, ArrowRight } from 'lucide-react-native';
-import { Colors } from '@/constants/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('alex.vance@institutional.capital');
-  const [password, setPassword] = useState('••••••••••••');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleBiometricAuth = async () => {
-    router.replace('/(tabs)');
+  const handleAuth = async () => {
+    if (!email.trim() || password.length < 6) {
+      Alert.alert('Details Required', 'Enter a valid email and a password with at least 6 characters.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      if (isSignUp) {
+        const result = await BackendService.signUp(email.trim(), password);
+        if (!result.session) {
+          Alert.alert('Check Your Email', 'Your account was created. Confirm your email, then sign in.');
+          setIsSignUp(false);
+          return;
+        }
+      } else {
+        await BackendService.signIn(email.trim(), password);
+      }
+      await SafeStorage.removeItem('@ledger_guest_session');
+      router.replace('/(tabs)');
+    } catch (error) {
+      Alert.alert(isSignUp ? 'Sign Up Failed' : 'Sign In Failed', error instanceof Error ? error.message : 'Unable to authenticate.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleStandardLogin = () => {
+  const handleGuest = async () => {
+    await SafeStorage.setItem('@ledger_guest_session', 'true');
     router.replace('/(tabs)');
   };
 
@@ -33,13 +61,21 @@ export default function LoginScreen() {
             <ShieldCheck size={28} color="#002111" />
           </View>
           <Text style={styles.brandTitle}>LEDGER</Text>
-          <Text style={styles.brandSub}>Institutional Financial Operating System</Text>
+          <Text style={styles.brandSub}>Private expense tracking, ready when you are</Text>
         </View>
 
         {/* Auth Form Card */}
         <View style={styles.card}>
+          <View style={styles.formIntro}>
+            <Text style={styles.formEyebrow}>{isSignUp ? 'WELCOME TO LEDGER' : 'SECURE ACCESS'}</Text>
+            <Text style={styles.formTitle}>{isSignUp ? 'Create your account' : 'Sign in to your ledger'}</Text>
+            <Text style={styles.formHint}>
+              {isSignUp ? 'Start with three receipt uploads included.' : 'Your expenses stay organized and ready.'}
+            </Text>
+          </View>
+
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>ORGANIZATION EMAIL</Text>
+            <Text style={styles.inputLabel}>EMAIL</Text>
             <View style={styles.inputBox}>
               <Mail size={16} color={Colors.textMuted} />
               <TextInput
@@ -48,12 +84,16 @@ export default function LoginScreen() {
                 onChangeText={setEmail}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                autoCorrect={false}
+                placeholder="you@example.com"
+                placeholderTextColor={Colors.textMuted}
+                returnKeyType="done"
               />
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>SECURITY KEY / PASSCODE</Text>
+            <Text style={styles.inputLabel}>PASSWORD</Text>
             <View style={styles.inputBox}>
               <Lock size={16} color={Colors.textMuted} />
               <TextInput
@@ -61,12 +101,15 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
+                placeholder={isSignUp ? 'At least 6 characters' : 'Enter your password'}
+                placeholderTextColor={Colors.textMuted}
+                returnKeyType="done"
               />
             </View>
           </View>
 
-          <TouchableOpacity style={styles.loginBtn} onPress={handleStandardLogin}>
-            <Text style={styles.loginBtnText}>ACCESS VAULT</Text>
+          <TouchableOpacity style={styles.loginBtn} onPress={handleAuth} disabled={isSubmitting}>
+            <Text style={styles.loginBtnText}>{isSubmitting ? 'PLEASE WAIT...' : isSignUp ? 'CREATE ACCOUNT' : 'SIGN IN'}</Text>
             <ArrowRight size={16} color="#002111" />
           </TouchableOpacity>
 
@@ -76,9 +119,14 @@ export default function LoginScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          <TouchableOpacity style={styles.biometricBtn} onPress={handleBiometricAuth}>
-            <Fingerprint size={20} color={Colors.primaryLight} />
-            <Text style={styles.biometricBtnText}>SIGN IN WITH FACEID / BIOMETRICS</Text>
+          <TouchableOpacity style={styles.biometricBtn} onPress={() => setIsSignUp((value) => !value)}>
+            <UserPlus size={20} color={Colors.primaryLight} />
+            <Text style={styles.biometricBtnText}>{isSignUp ? 'I ALREADY HAVE AN ACCOUNT' : 'CREATE A NEW ACCOUNT'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.guestBtn} onPress={handleGuest}>
+            <Fingerprint size={18} color={Colors.textMuted} />
+            <Text style={styles.guestBtnText}>PROCEED AS GUEST</Text>
           </TouchableOpacity>
         </View>
 
@@ -136,6 +184,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.borderLight,
     gap: 16,
+  },
+  formIntro: {
+    gap: 5,
+    marginBottom: 2,
+  },
+  formEyebrow: {
+    color: Colors.primaryLight,
+    fontFamily: 'Menlo',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+  },
+  formTitle: {
+    color: Colors.textPrimary,
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  formHint: {
+    color: Colors.textMuted,
+    fontFamily: 'Menlo',
+    fontSize: 11,
+    lineHeight: 17,
   },
   inputGroup: {
     gap: 6,
@@ -213,6 +283,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: 'Menlo',
     fontSize: 11,
+    letterSpacing: 0.5,
+  },
+  guestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+  },
+  guestBtnText: {
+    color: Colors.textMuted,
+    fontFamily: 'Menlo',
+    fontSize: 11,
+    fontWeight: '700',
     letterSpacing: 0.5,
   },
   footer: {

@@ -1,8 +1,8 @@
+import { Trash2 } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../constants/theme';
 import { LineItem } from '../../types';
-import { Trash2 } from 'lucide-react-native';
 
 interface LineItemRowProps {
   item: LineItem;
@@ -36,6 +36,10 @@ export const LineItemRow: React.FC<LineItemRowProps> = ({ item, onDelete, onUpda
           style={styles.nameInput}
           value={name}
           onChangeText={handleNameChange}
+          multiline
+          numberOfLines={2}
+          scrollEnabled={false}
+          textAlignVertical="top"
           placeholder="Item description"
           placeholderTextColor={Colors.textMuted}
         />
@@ -84,6 +88,8 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   nameInput: {
+    width: '100%',
+    minHeight: 40,
     fontSize: 14,
     fontWeight: '600',
     color: Colors.textPrimary,

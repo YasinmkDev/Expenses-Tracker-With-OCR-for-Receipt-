@@ -7,7 +7,9 @@ export { ScannedReceiptResult };
  */
 export async function parseReceiptWithGemini(
   base64Image: string,
-  _apiKey?: string
+  _apiKey?: string,
+  imageUri?: string,
+  mimeType?: string
 ): Promise<ScannedReceiptResult> {
-  return await executeRealOCR(base64Image);
+  return await executeRealOCR(base64Image, imageUri, mimeType);
 }

@@ -1,3 +1,4 @@
+import * as FileSystem from 'expo-file-system/legacy';
 import { CategoryType, LineItem } from '../types';
 
 export interface ScannedReceiptResult {
@@ -14,6 +15,169 @@ export interface ScannedReceiptResult {
   errorMessage?: string;
   note?: string;
   rawText?: string;
+}
+
+const DEFAULT_DATE = () =>
+  new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+function invalidReceipt(errorMessage: string, rawText?: string): ScannedReceiptResult {
+  return {
+    isValidReceipt: false,
+    merchant: '',
+    date: DEFAULT_DATE(),
+    total: 0,
+    tax: 0,
+    subtotal: 0,
+    category: 'Misc',
+    lineItems: [],
+    confidence: 'low',
+    engine: 'none',
+    errorMessage,
+    rawText,
+  };
+}
+
+const SUPPORTED_CATEGORIES: CategoryType[] = [
+  'Dining', 'Groceries', 'Transport', 'Shopping', 'Health', 'Entertain', 'Travel', 'Electronics', 'Utilities', 'Misc',
+];
+
+function normalizeCategory(value: unknown, context: string): CategoryType {
+  const category = String(value || '').trim();
+  const supported = SUPPORTED_CATEGORIES.find((item) => item.toLowerCase() === category.toLowerCase());
+  return supported || categorizeText(context);
+}
+
+function normalizeConfidence(value: unknown): 'high' | 'medium' | 'low' {
+  if (typeof value === 'number') return value >= 0.85 ? 'high' : value >= 0.6 ? 'medium' : 'low';
+  return ['high', 'medium', 'low'].includes(String(value).toLowerCase())
+    ? String(value).toLowerCase() as 'high' | 'medium' | 'low'
+    : 'medium';
+}
+
+function parseGeminiResponse(value: unknown, rawText: string): ScannedReceiptResult | null {
+  const responseText = typeof value === 'string'
+    ? value
+    : (value as any)?.choices?.[0]?.message?.content || (value as any)?.output || '';
+  if (!responseText) return null;
+
+  try {
+    const jsonText = responseText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+    const parsed = JSON.parse(jsonText);
+    if (parsed.isValidReceipt === false || (!parsed.merchant && !parsed.total)) {
+      return null;
+    }
+
+    const itemContext = (parsed.lineItems || []).map((item: any) => item.name || item.description || '').join(' ');
+    const category = normalizeCategory(parsed.category, `${parsed.merchant || parsed.supplier || parsed.vendor || ''} ${itemContext}`);
+    const lineItems: LineItem[] = (Array.isArray(parsed.lineItems) ? parsed.lineItems : []).map((item: any, index: number) => ({
+      id: `gemini-item-${index + 1}`,
+      name: String(item.name || item.description || 'Receipt item'),
+      price: Number(item.price ?? item.total ?? item.amount) || 0,
+      category: normalizeCategory(item.category, `${item.name || item.description || ''} ${category}`),
+      confidence: normalizeConfidence(item.confidence ?? parsed.confidence),
+    }));
+    const tax = Number(parsed.tax) || 0;
+    const total = Number(parsed.total) || 0;
+    const subtotal = Number(parsed.subtotal) || (total > tax ? total - tax : lineItems.reduce((sum, item) => sum + item.price, 0));
+
+    return {
+      isValidReceipt: true,
+      merchant: String(parsed.merchant || parsed.supplier || parsed.vendor || parsed.billed_to_name || 'Receipt Merchant'),
+      date: String(parsed.date || DEFAULT_DATE()),
+      total: total || subtotal + tax,
+      tax,
+      subtotal,
+      category,
+      lineItems: lineItems.length ? lineItems : [{ id: 'gemini-item-1', name: 'Receipt total', price: total || subtotal, category, confidence: 'medium' }],
+      confidence: normalizeConfidence(parsed.confidence),
+      engine: 'gemini-flash',
+      note: 'OCR.space text organized by Gemini AI',
+      rawText,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function organizeReceiptWithGemini(rawText: string): Promise<ScannedReceiptResult | null> {
+  const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+  if (!apiKey) return null;
+  const model = process.env.EXPO_PUBLIC_GEMINI_MODEL || 'gemini-3.6-flash';
+  const prompt = `You are a financial data extraction engine. Organize OCR text from a receipt or invoice into strict JSON only. An invoice is a valid expense document. Return isValidReceipt false only when there is no merchant and no monetary amount. Never invent missing values. Use this exact schema: {"isValidReceipt":true,"merchant":"string","date":"MMM DD, YYYY","subtotal":0,"tax":0,"total":0,"category":"Dining|Groceries|Transport|Shopping|Health|Entertain|Travel|Electronics|Utilities|Misc","confidence":"high|medium|low","lineItems":[{"name":"string","price":0,"category":"Dining|Groceries|Transport|Shopping|Health|Entertain|Travel|Electronics|Utilities|Misc","confidence":"high|medium|low"}]}. For invoices, use the supplier or company name as merchant, the issue date, and billed descriptions as line items. Keep numeric values as numbers.\n\nOCR TEXT:\n${rawText}`;
+
+  try {
+    const request = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0, responseMimeType: 'application/json' },
+      }),
+    };
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, request);
+      if (response.ok) {
+        const json = await response.json();
+        const responseText = json?.candidates?.[0]?.content?.parts?.map((part: any) => part.text || '').join('');
+        return responseText ? parseGeminiResponse(responseText, rawText) : null;
+      }
+      if (![429, 500, 503].includes(response.status)) return null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function parseDocumentWithParseur(base64Image: string, imageUri?: string, mimeType = 'image/jpeg'): Promise<string> {
+  const apiKey = process.env.EXPO_PUBLIC_PARSEUR_API_KEY;
+  const mailboxId = process.env.EXPO_PUBLIC_PARSEUR_MAILBOX_ID || '213962';
+  if (!apiKey) throw new Error('Parseur API key is not configured.');
+
+  const headers = { Authorization: `Token ${apiKey}` };
+  let uploadFileUri = imageUri;
+  let temporaryFileUri: string | undefined;
+  if (!uploadFileUri) {
+    temporaryFileUri = `${FileSystem.cacheDirectory}receipt-${Date.now()}.jpg`;
+    await FileSystem.writeAsStringAsync(temporaryFileUri, base64Image, { encoding: FileSystem.EncodingType.Base64 });
+    uploadFileUri = temporaryFileUri;
+  }
+
+  const uploadResponse = await FileSystem.uploadAsync(
+    `https://api.parseur.com/parser/${mailboxId}/upload`,
+    uploadFileUri,
+    {
+      headers,
+      fieldName: 'file',
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      mimeType,
+    }
+  );
+  if (temporaryFileUri) await FileSystem.deleteAsync(temporaryFileUri, { idempotent: true });
+  if (uploadResponse.status < 200 || uploadResponse.status >= 300) {
+    throw new Error(`Parseur upload failed (${uploadResponse.status}).`);
+  }
+
+  const upload = JSON.parse(uploadResponse.body);
+  const documentId = upload?.attachments?.[0]?.DocumentID;
+  if (!documentId) throw new Error('Parseur accepted the upload but did not return a document ID.');
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const documentResponse = await fetch(`https://api.parseur.com/document/${documentId}`, { headers });
+    if (!documentResponse.ok) throw new Error(`Parseur document lookup failed (${documentResponse.status}).`);
+    const document = await documentResponse.json();
+    if (document.status === 'PARSEDOK') {
+      const result = typeof document.result === 'string' ? document.result : JSON.stringify(document.result || '');
+      return [document.content, result].filter(Boolean).join('\n');
+    }
+    if (['PARSEDKO', 'QUOTAEXC', 'INVALID', 'EXPORTKO', 'TRANSKO'].includes(document.status)) {
+      throw new Error(`Parseur processing failed with status ${document.status}.`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+
+  throw new Error('Parseur processing timed out.');
 }
 
 // Category keyword dictionary for automatic semantic categorization
@@ -83,10 +247,25 @@ export function categorizeText(text: string): CategoryType {
  */
 export function parseRawReceiptText(rawText: string): ScannedReceiptResult {
   const clean = rawText.trim();
-  const lines = clean
+  const sourceLines = clean
     .split('\n')
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
+  const lines: string[] = [];
+  for (let index = 0; index < sourceLines.length; index += 1) {
+    const line = sourceLines[index];
+    const nextLine = sourceLines[index + 1];
+    if (
+      nextLine &&
+      /^(subtotal|sub total|sub-total|tax|vat|total|total due|balance due|amount due|grand total)\b/i.test(line) &&
+      /[$€£¥]?\s*\d+[\d,]*[.,]\d{2}\s*$/.test(nextLine)
+    ) {
+      lines.push(`${line} ${nextLine}`);
+      index += 1;
+    } else {
+      lines.push(line);
+    }
+  }
 
   // If there are fewer than 2 lines or total text length is under 8 characters, it's not a recognizable receipt
   if (lines.length < 2 || clean.length < 8) {
@@ -248,143 +427,26 @@ export function parseRawReceiptText(rawText: string): ScannedReceiptResult {
 /**
  * Execute real On-Device Image OCR or Free Cloud OCR API
  */
-export async function executeRealOCR(base64Image: string): Promise<ScannedReceiptResult> {
+export async function executeRealOCR(base64Image: string, imageUri?: string, mimeType = 'image/jpeg'): Promise<ScannedReceiptResult> {
   const cleanBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, '');
 
   if (!cleanBase64 || cleanBase64.length < 50) {
-    return {
-      isValidReceipt: false,
-      merchant: '',
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      total: 0,
-      tax: 0,
-      subtotal: 0,
-      category: 'Misc',
-      lineItems: [],
-      confidence: 'low',
-      engine: 'none',
-      errorMessage: 'Image is empty or unreadable.',
-    };
+    return invalidReceipt('Image is empty or unreadable.');
   }
 
-  // 1. Try Gemini Vision if API key is present
-  const geminiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
-  if (geminiKey) {
-    try {
-      const prompt = `You are a financial receipt OCR parser. Analyze this image. If this image is NOT a receipt or has no readable text/prices, respond with: {"isValidReceipt": false, "errorMessage": "No receipt detected"}.
-Otherwise extract JSON:
-{
-  "isValidReceipt": true,
-  "merchant": "Store Name",
-  "date": "MMM DD, YYYY",
-  "total": 0.00,
-  "tax": 0.00,
-  "category": "Dining | Groceries | Transport | Shopping | Health | Entertain | Travel | Electronics | Utilities | Misc",
-  "confidence": "high | medium | low",
-  "lineItems": [
-    { "name": "Item Description", "price": 0.00, "category": "Category", "confidence": "high | medium | low" }
-  ]
-}`;
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { text: prompt },
-                  { inline_data: { mime_type: 'image/jpeg', data: cleanBase64 } },
-                ],
-              },
-            ],
-            generationConfig: { response_mime_type: 'application/json' },
-          }),
-        }
-      );
-      const json = await response.json();
-      const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (rawText) {
-        const parsed = JSON.parse(rawText);
-        if (parsed.isValidReceipt === false || (!parsed.merchant && !parsed.total)) {
-          return {
-            isValidReceipt: false,
-            merchant: '',
-            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-            total: 0,
-            tax: 0,
-            subtotal: 0,
-            category: 'Misc',
-            lineItems: [],
-            confidence: 'low',
-            engine: 'gemini-flash',
-            errorMessage: parsed.errorMessage || 'No legible receipt detected in the image.',
-          };
-        }
-
-        return {
-          isValidReceipt: true,
-          merchant: parsed.merchant || 'Parsed Merchant',
-          date: parsed.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          total: Number(parsed.total) || 0,
-          subtotal: Number(parsed.total) - (Number(parsed.tax) || 0),
-          tax: Number(parsed.tax) || 0,
-          category: parsed.category || 'Misc',
-          confidence: parsed.confidence || 'high',
-          engine: 'gemini-flash',
-          lineItems: (parsed.lineItems || []).map((item: any, idx: number) => ({
-            id: `gemini-item-${idx + 1}`,
-            name: item.name,
-            price: Number(item.price) || 0,
-            category: item.category || parsed.category || 'Misc',
-            confidence: item.confidence || 'high',
-          })),
-          note: 'AI OCR Extracted via Gemini 2.5 Flash Vision',
-        };
-      }
-    } catch (e) {
-      console.warn('Gemini OCR fetch failed, using On-Device Free OCR parser:', e);
-    }
-  }
-
-  // 2. High-Speed Public OCR API (OCR.Space Engine 2 for Receipts)
+  // Parseur performs document OCR and extraction; Gemini categorizes the returned text.
   try {
-    const formData = new FormData();
-    formData.append('base64Image', `data:image/jpeg;base64,${cleanBase64}`);
-    formData.append('language', 'eng');
-    formData.append('isOverlayRequired', 'false');
-    formData.append('OCREngine', '2'); // Engine 2 optimized for receipts and invoices
-    formData.append('apikey', 'K88729388888957');
+    const parsedText = await parseDocumentWithParseur(cleanBase64, imageUri, mimeType);
+    const organized = await organizeReceiptWithGemini(parsedText);
+    if (organized) return organized;
 
-    const ocrResponse = await fetch('https://api.ocr.space/parse/image', {
-      method: 'POST',
-      body: formData,
-    });
-
-    const ocrJson = await ocrResponse.json();
-    const parsedText = ocrJson?.ParsedResults?.[0]?.ParsedText;
-
-    if (parsedText && parsedText.trim().length > 0) {
-      const result = parseRawReceiptText(parsedText);
-      return result;
-    }
+    const looksLikeExpenseDocument = /\b(receipt|invoice|subtotal|total due|amount due|balance due|tax)\b/i.test(parsedText)
+      && /[$€£¥]\s*\d|\b\d+[.,]\d{2}\b/.test(parsedText);
+    return looksLikeExpenseDocument
+      ? parseRawReceiptText(parsedText)
+      : invalidReceipt('Gemini could not organize Parseur data as an expense document.', parsedText);
   } catch (err) {
-    console.warn('OCR Space API failed:', err);
+    console.warn('Parseur OCR failed:', err);
+    return invalidReceipt(err instanceof Error ? err.message : 'Could not process the image with Parseur.');
   }
-
-  // 3. If zero text extracted from image, return invalid receipt instead of fake mock data
-  return {
-    isValidReceipt: false,
-    merchant: '',
-    date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    total: 0,
-    tax: 0,
-    subtotal: 0,
-    category: 'Misc',
-    lineItems: [],
-    confidence: 'low',
-    engine: 'none',
-    errorMessage: 'No text or receipt numbers could be detected in this photo.',
-  };
 }
