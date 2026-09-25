@@ -77,9 +77,9 @@ export function AppButton({
 }
 
 const VARIANTS: Record<ButtonVariant, { bg: string; fg: string; border: string }> = {
-  primary: { bg: Colors.spruceElevated, fg: Colors.onSpruce, border: Colors.spruceElevated },
-  accent: { bg: Colors.mint, fg: '#00181A', border: Colors.mint },
-  secondary: { bg: Colors.background, fg: Colors.textPrimary, border: Colors.spruceElevated },
+  primary: { bg: Colors.primaryLight, fg: Colors.onSpruce, border: Colors.primaryLight },
+  accent: { bg: Colors.primary, fg: Colors.onSpruce, border: Colors.primary },
+  secondary: { bg: Colors.surfaceCard, fg: Colors.textPrimary, border: Colors.primaryLight },
   ghost: { bg: 'transparent', fg: Colors.textPrimary, border: Colors.borderLight },
   danger: { bg: Colors.rustMuted, fg: Colors.rust, border: Colors.rust },
 };

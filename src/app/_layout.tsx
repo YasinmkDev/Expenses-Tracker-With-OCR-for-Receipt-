@@ -31,7 +31,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <LedgerProvider>
         <View style={styles.container}>
-          <StatusBar style="dark" backgroundColor={Colors.background} />
+          <StatusBar style="dark" />
           <Stack
             screenOptions={{
               headerShown: false,

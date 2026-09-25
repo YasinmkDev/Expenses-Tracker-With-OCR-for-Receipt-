@@ -21,14 +21,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SEGMENT_COLORS = [
-  '#0B3B37', // Deep spruce
-  '#2F6F63', // Spruce
-  '#5A9A87', // Sage
-  '#A7C4A0', // Soft moss
-  '#D8A24A', // Warm gold
-  '#C4632F', // Terracotta
-  '#8A9A5B', // Olive
-  '#6E7B6B', // Stone
+  Colors.primary,
+  Colors.rust,
+  Colors.primaryLight,
+  '#7D70D8',
+  '#68CBEA',
+  '#F2B84B',
+  '#FF8BCB',
+  Colors.textMuted,
 ];
 
 export default function InsightsScreen() {

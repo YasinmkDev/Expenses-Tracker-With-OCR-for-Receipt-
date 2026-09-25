@@ -84,7 +84,7 @@ export default function HomeScreen() {
           </View>
         </FadeSlideIn>
 
-        {/* Master Spend Card — dark spruce, the signature surface */}
+        {/* Signature spend card — electric grape retail-style hero */}
         <FadeSlideIn index={1}>
           <View style={styles.heroCard}>
             <View style={styles.cardHeader}>
@@ -266,20 +266,25 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   logoDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.primary,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.rust,
   },
   brandTitle: { letterSpacing: 2 },
   greeting: { marginTop: 2 },
   heroCard: {
-    backgroundColor: Colors.spruce,
+    backgroundColor: Colors.primary,
     borderRadius: Radius.surface,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.spruceElevated,
+    padding: Spacing.xl,
+    borderWidth: 2,
+    borderColor: Colors.primaryLight,
     gap: Spacing.base,
+    shadowColor: Colors.primaryLight,
+    shadowOpacity: 0.22,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 7,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -332,6 +337,8 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.base,
+    borderWidth: 2,
+    borderColor: Colors.primaryLight,
   },
   aiBannerText: { flex: 1, lineHeight: 17 },
   sectionHeader: {

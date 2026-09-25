@@ -204,11 +204,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderLight,
   },
   chipSelected: {
-    backgroundColor: Colors.spruce,
-    borderColor: Colors.spruce,
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primaryLight,
   },
   chipText: { color: Colors.textMuted },
-  chipTextSelected: { color: Colors.mint, fontWeight: '700' },
+  chipTextSelected: { color: Colors.onSpruce, fontWeight: '700' },
   listContainer: {
     gap: Spacing.sm,
     marginTop: Spacing.xs,

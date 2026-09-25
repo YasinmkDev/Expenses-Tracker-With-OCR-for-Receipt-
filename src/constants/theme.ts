@@ -1,109 +1,83 @@
-/**
- * Ledger design system — "dark spruce forest meets warm cream paper".
- *
- * The screens across the app import the flat `Colors` object and reference a
- * stable set of keys (background, surface, surfaceCard, primary, textPrimary,
- * etc). To re-skin the whole product without touching business logic we keep
- * those keys but remap their values to the spruce + cream palette below.
- *
- * New tokens (Spruce, Accent, Spacing, Radius, Typography, Motion) are additive
- * and used by the shared component library in `components/ui`.
- */
+/** Ledger visual system — playful pastel finance shelf. */
 
-// ---------------------------------------------------------------------------
-// Raw palette (source of truth for every color in the app)
-// ---------------------------------------------------------------------------
 export const Palette = {
-  // Dark spruce family (high-impact surfaces, hero cards, headers)
-  spruceDeepest: '#00191C',
-  spruce: '#032125',
-  spruceElevated: '#0B363B',
-
-  // Cream / paper family (default readable canvas)
-  cream: '#FFFCF6',
+  grape: '#5B00ED',
+  grapeDeep: '#3F0791',
+  grapeSoft: '#CAC4F4',
+  lilac: '#DAD9FF',
+  aqua: '#BFEDFE',
+  magenta: '#E30BA6',
   white: '#FFFFFF',
-  mutedSurface: '#FAFAFA',
-  warmSurface: '#F4F1EA',
-
-  // Text
-  ink: '#032125', // primary text on light
-  inkSecondary: '#354D51', // secondary text on light
-  inkMuted: '#5F7377', // muted text on light
-  onDark: '#FFFCF6', // text on spruce
-  onDarkMuted: '#A1C2C6', // muted text/icon on spruce
-
-  // Accents
-  mint: '#ABFFAE', // primary interactive accent
-  mintSoft: '#EAFDE8', // soft success background
-  green: '#178E57', // legible green for fills + accent text
-  greenDeep: '#0B6B3F', // green accent text on light
-  info: '#123A88', // blue text accent
-  infoSoft: '#E2F4FF', // soft information background
-  warm: '#863D1C', // orange text accent
-  warmSoft: '#FDF0E9', // soft warm feature background
-  amber: '#B06A1B', // warning
-  red: '#C1443B', // destructive
-  redSoft: '#FBEAE8',
-
-  // Lines
-  border: '#EBEBEB',
-  borderStrong: '#E0DED6',
-  ring: '#ABFFAE',
+  ink: '#3F0791',
+  inkSoft: '#685BA1',
+  midnight: '#190A3D',
+  mint: '#B9F4D2',
+  mintInk: '#146B4D',
+  peach: '#FFD7C7',
+  peachInk: '#A5462C',
+  yellow: '#FFE58A',
+  line: '#B9B2E8',
 } as const;
 
-// ---------------------------------------------------------------------------
-// Colors — legacy-compatible keys, remapped to the new palette.
-// Every existing screen/component reads from here.
-// ---------------------------------------------------------------------------
-export const Colors = {
-  // Canvas + surfaces
-  background: Palette.cream,
-  surface: Palette.mutedSurface,
+export const Colors: Record<string, any> = {
+  background: Palette.lilac,
+  surface: Palette.aqua,
   surfaceCard: Palette.white,
-  surfaceElevated: '#F3F2EC',
-  surfaceHighlight: '#DCE6DD',
-
-  // Brand accents (primary = fill/bg with dark text, primaryLight = accent text)
-  primary: Palette.green,
-  primaryLight: Palette.greenDeep,
-  primaryMuted: Palette.mintSoft,
-  primaryDark: Palette.spruceElevated,
-
-  // Signal accents
-  gold: Palette.amber,
-  goldMuted: Palette.warmSoft,
-  rust: Palette.red,
-  rustMuted: Palette.redSoft,
-
-  // Typography + borders
+  surfaceElevated: Palette.white,
+  surfaceHighlight: Palette.grapeSoft,
+  backgroundSelected: Palette.grapeSoft,
+  text: Palette.ink,
+  primary: Palette.grape,
+  primaryLight: Palette.grapeDeep,
+  primaryMuted: Palette.grapeSoft,
+  primaryDark: Palette.grapeDeep,
+  gold: Palette.yellow,
+  goldMuted: '#FFF6C8',
+  rust: Palette.magenta,
+  rustMuted: '#FAD5EF',
   textPrimary: Palette.ink,
-  textSecondary: Palette.inkSecondary,
-  textMuted: Palette.inkMuted,
-  borderLight: Palette.border,
-  borderAccent: Palette.ring,
-
-  // Spruce surfaces (used explicitly by hero areas / dark sections)
-  spruceDeepest: Palette.spruceDeepest,
-  spruce: Palette.spruce,
-  spruceElevated: Palette.spruceElevated,
-  onSpruce: Palette.onDark,
-  onSpruceMuted: Palette.onDarkMuted,
+  textSecondary: Palette.inkSoft,
+  textMuted: '#766FA1',
+  borderLight: Palette.line,
+  borderAccent: Palette.grape,
+  spruceDeepest: Palette.midnight,
+  spruce: Palette.grape,
+  spruceElevated: Palette.grapeDeep,
+  onSpruce: Palette.white,
+  onSpruceMuted: '#E6DEFF',
   mint: Palette.mint,
-
-  // Semantic tints
-  info: Palette.info,
-  infoSoft: Palette.infoSoft,
-  warm: Palette.warm,
-  warmSoft: Palette.warmSoft,
+  info: Palette.grapeDeep,
+  infoSoft: Palette.aqua,
+  warm: Palette.peachInk,
+  warmSoft: Palette.peach,
+  light: {
+    background: Palette.white,
+    backgroundElement: Palette.lilac,
+    text: Palette.ink,
+  },
+  dark: {
+    background: Palette.midnight,
+    backgroundElement: Palette.grapeDeep,
+    text: Palette.white,
+  },
 } as const;
 
-// Dark text that sits on the mint/green accent buttons throughout the app.
-export const OnAccent = '#00181A';
+export const Fonts = {
+  sans: 'System',
+  mono: 'System',
+} as const;
 
-// ---------------------------------------------------------------------------
-// Spacing — 4px system
-// ---------------------------------------------------------------------------
+export type ThemeColor = string;
+
+export const OnAccent = Palette.white;
+
 export const Spacing = {
+  half: 2,
+  one: 4,
+  two: 8,
+  three: 12,
+  four: 16,
+  five: 20,
   xs: 4,
   sm: 8,
   md: 12,
@@ -115,56 +89,47 @@ export const Spacing = {
   huge: 48,
 } as const;
 
-// ---------------------------------------------------------------------------
-// Radius — 2px surfaces, pill for buttons/chips
-// ---------------------------------------------------------------------------
-export const Radius = {
-  surface: 2, // cards, inputs, list rows, feature surfaces
-  chip: 999,
-  pill: 999,
-  full: 999,
-} as const;
+export const MaxContentWidth = 720;
 
-// ---------------------------------------------------------------------------
-// Typography — clean sans, mostly medium weight, editorial titles
-// ---------------------------------------------------------------------------
+export const Radius = { surface: 25, chip: 999, pill: 999, full: 999, button: 20, control: 52 } as const;
+
 export const Typography = {
-  fontFamily: {
-    // Kept for backwards compatibility with older references.
-    mono: 'System',
-    sans: 'System',
-  },
-  // Reusable text tokens: { fontSize, lineHeight, fontWeight, letterSpacing }
-  caption: { fontSize: 11, lineHeight: 16, fontWeight: '500' as const, letterSpacing: 0.2 },
-  label: { fontSize: 12, lineHeight: 18, fontWeight: '600' as const, letterSpacing: 0.4 },
+  fontFamily: { mono: 'System', sans: 'System' },
+  caption: { fontSize: 11, lineHeight: 16, fontWeight: '600' as const, letterSpacing: 0.2 },
+  label: { fontSize: 12, lineHeight: 18, fontWeight: '700' as const, letterSpacing: 0.8 },
   body: { fontSize: 15, lineHeight: 22, fontWeight: '500' as const, letterSpacing: 0 },
-  bodyStrong: { fontSize: 15, lineHeight: 22, fontWeight: '600' as const, letterSpacing: 0 },
-  subheading: { fontSize: 18, lineHeight: 24, fontWeight: '600' as const, letterSpacing: -0.2 },
-  heading: { fontSize: 22, lineHeight: 28, fontWeight: '600' as const, letterSpacing: -0.4 },
-  title: { fontSize: 30, lineHeight: 36, fontWeight: '600' as const, letterSpacing: -0.6 },
-  numeric: { fontSize: 34, lineHeight: 40, fontWeight: '600' as const, letterSpacing: -0.8 },
+  bodyStrong: { fontSize: 15, lineHeight: 22, fontWeight: '700' as const, letterSpacing: 0 },
+  subheading: { fontSize: 18, lineHeight: 24, fontWeight: '700' as const, letterSpacing: -0.2 },
+  heading: { fontSize: 22, lineHeight: 28, fontWeight: '800' as const, letterSpacing: -0.4 },
+  title: { fontSize: 30, lineHeight: 34, fontWeight: '800' as const, letterSpacing: -0.8 },
+  numeric: { fontSize: 34, lineHeight: 40, fontWeight: '800' as const, letterSpacing: -0.8 },
+  display: { fontSize: 42, lineHeight: 44, fontWeight: '800' as const, letterSpacing: -1 },
 } as const;
 
-// ---------------------------------------------------------------------------
-// Motion — centralized durations/easing for the animation system
-// ---------------------------------------------------------------------------
 export const Motion = {
-  duration: {
-    fast: 140,
-    base: 220,
-    entrance: 280,
-    slow: 320,
-  },
+  duration: { fast: 140, base: 220, entrance: 280, slow: 320 },
   pressScale: 0.97,
   cardPressScale: 0.985,
   spring: { damping: 18, stiffness: 180, mass: 0.9 },
   stagger: 55,
 } as const;
 
-// ---------------------------------------------------------------------------
-// Hairline "elevation" — thin borders instead of heavy shadows
-// ---------------------------------------------------------------------------
-export const Hairline = {
-  borderWidth: 1,
-  borderColor: Colors.borderLight,
+export const Hairline = { borderWidth: 1, borderColor: Colors.borderLight } as const;
+
+export const Gradients = {
+  grape: [Palette.magenta, Palette.grape],
+  sky: [Palette.aqua, Palette.lilac],
 } as const;
+
+export const Shadows = {
+  card: { shadowColor: Palette.grapeDeep, shadowOpacity: 0.1, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 4 },
+} as const;
+
+export const OnDark = Palette.white;
+export const OnAccentText = Palette.white;
+
+// Backwards-compatible alias used by older screens.
+export const OnAccentLegacy = Palette.white;
+
+export const Theme = { Palette, Colors, Spacing, Radius, Typography, Motion, Hairline, Gradients, Shadows };
+export default Theme;

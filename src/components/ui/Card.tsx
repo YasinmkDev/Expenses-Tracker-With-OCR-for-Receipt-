@@ -3,7 +3,7 @@ import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { PressableScale } from './motion';
 
-type Surface = 'paper' | 'spruce' | 'mint' | 'info' | 'warm';
+type Surface = 'paper' | 'spruce' | 'mint' | 'info' | 'warm' | 'grape' | 'aqua';
 
 interface CardProps {
   children: React.ReactNode;
@@ -20,6 +20,8 @@ const SURFACES: Record<Surface, { bg: string; border: string }> = {
   mint: { bg: Colors.primaryMuted, border: Colors.borderAccent },
   info: { bg: Colors.infoSoft, border: Colors.infoSoft },
   warm: { bg: Colors.warmSoft, border: Colors.warmSoft },
+  grape: { bg: Colors.primary, border: Colors.primaryLight },
+  aqua: { bg: Colors.surface, border: Colors.surface },
 };
 
 export function Card({ children, surface = 'paper', onPress, padded = true, style, accessibilityLabel }: CardProps) {
