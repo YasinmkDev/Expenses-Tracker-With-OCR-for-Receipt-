@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Colors } from '../../constants/theme';
+import { View, Text, StyleSheet } from 'react-native';
+import { Colors, Radius, Spacing } from '../../constants/theme';
 import { BudgetCategory } from '../../types';
 import { CategoryIcon } from './CategoryIcon';
+import { PressableScale } from '../ui/motion';
 
 interface BudgetCardProps {
   category: BudgetCategory;
@@ -16,7 +17,13 @@ export const BudgetCard: React.FC<BudgetCardProps> = ({ category, onPress }) => 
   const barColor = isOver ? Colors.rust : isHigh ? Colors.gold : Colors.primary;
 
   return (
-    <TouchableOpacity activeOpacity={0.8} style={styles.card} onPress={onPress}>
+    <PressableScale
+      onPress={onPress}
+      scaleTo={0.985}
+      style={styles.card}
+      accessibilityRole="button"
+      accessibilityLabel={`${category.name} budget, ${pct}% used`}
+    >
       <View style={styles.topRow}>
         <View style={styles.leftInfo}>
           <CategoryIcon
@@ -54,18 +61,18 @@ export const BudgetCard: React.FC<BudgetCardProps> = ({ category, onPress }) => 
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${pct}%`, backgroundColor: barColor }]} />
       </View>
-    </TouchableOpacity>
+    </PressableScale>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.surfaceCard,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: Radius.surface,
+    padding: Spacing.base,
     borderWidth: 1,
     borderColor: Colors.borderLight,
-    gap: 12,
+    gap: Spacing.md,
   },
   topRow: {
     flexDirection: 'row',
@@ -75,16 +82,17 @@ const styles = StyleSheet.create({
   leftInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Spacing.md,
   },
   name: {
     fontSize: 15,
     fontWeight: '600',
+    letterSpacing: -0.2,
     color: Colors.textPrimary,
   },
   txCount: {
     fontSize: 11,
-    fontFamily: 'Menlo',
+    fontWeight: '500',
     color: Colors.textMuted,
     marginTop: 2,
   },
@@ -92,22 +100,17 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceElevated,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: Radius.pill,
   },
   pctBadgeWarning: {
     backgroundColor: Colors.goldMuted,
-    borderWidth: 1,
-    borderColor: Colors.gold,
   },
   pctBadgeDanger: {
     backgroundColor: Colors.rustMuted,
-    borderWidth: 1,
-    borderColor: Colors.rust,
   },
   pctText: {
     fontSize: 11,
-    fontFamily: 'Menlo',
-    fontWeight: '600',
+    fontWeight: '700',
     color: Colors.textMuted,
   },
   pctTextWarning: {
@@ -123,8 +126,8 @@ const styles = StyleSheet.create({
   },
   spentAmount: {
     fontSize: 15,
-    fontFamily: 'Menlo',
     fontWeight: '700',
+    letterSpacing: -0.2,
     color: Colors.textPrimary,
   },
   budgetLimit: {
@@ -134,17 +137,16 @@ const styles = StyleSheet.create({
   },
   remaining: {
     fontSize: 12,
-    fontFamily: 'Menlo',
     fontWeight: '600',
   },
   track: {
     height: 6,
     backgroundColor: Colors.surfaceElevated,
-    borderRadius: 3,
+    borderRadius: Radius.pill,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: Radius.pill,
   },
 });

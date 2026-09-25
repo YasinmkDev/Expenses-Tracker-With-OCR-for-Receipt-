@@ -1,17 +1,12 @@
-import { Colors } from '@/constants/theme';
+import { AppButton, AppInput, AppText, Divider, FadeSlideIn } from '@/components/ui';
+import { PressableScale } from '@/components/ui/motion';
+import { Colors, Radius, Spacing } from '@/constants/theme';
 import { BackendService } from '@/services/backend';
 import { SafeStorage } from '@/services/safeStorage';
 import { useRouter } from 'expo-router';
-import { ArrowRight, Fingerprint, Lock, Mail, ShieldCheck } from 'lucide-react-native';
+import { Fingerprint, Lock, Mail, ShieldCheck } from 'lucide-react-native';
 import { useState } from 'react';
-import {
-  Alert,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import Animated, {
   runOnJS,
   useAnimatedStyle,
@@ -36,7 +31,6 @@ export default function LoginScreen() {
   }));
 
   const switchMode = (next: 'signin' | 'signup') => {
-    // slide out → update state → slide in
     opacity.value = withTiming(0, { duration: 150 });
     translateX.value = withTiming(40, { duration: 150 }, () => {
       runOnJS(setMode)(next);
@@ -67,7 +61,10 @@ export default function LoginScreen() {
       await SafeStorage.removeItem('@ledger_guest_session');
       router.replace('/(tabs)');
     } catch (error) {
-      Alert.alert(mode === 'signup' ? 'Sign Up Failed' : 'Sign In Failed', error instanceof Error ? error.message : 'Unable to authenticate.');
+      Alert.alert(
+        mode === 'signup' ? 'Sign Up Failed' : 'Sign In Failed',
+        error instanceof Error ? error.message : 'Unable to authenticate.',
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -83,111 +80,122 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-
         {/* Brand Header */}
-        <View style={styles.brandSection}>
-          <View style={styles.logoBadge}>
-            <View style={styles.logoGlow} />
-            <ShieldCheck size={26} color="#002111" />
+        <FadeSlideIn index={0}>
+          <View style={styles.brandSection}>
+            <View style={styles.logoBadge}>
+              <ShieldCheck size={26} color="#00181A" />
+            </View>
+            <AppText variant="title" tone="onDark" style={styles.brandTitle}>
+              LEDGER
+            </AppText>
+            <AppText variant="body" tone="onDarkMuted" center>
+              Private expense tracking, ready when you are
+            </AppText>
           </View>
-          <Text style={styles.brandTitle}>LEDGER</Text>
-          <Text style={styles.brandSub}>Private expense tracking, ready when you are</Text>
-        </View>
+        </FadeSlideIn>
 
         {/* Mode Toggle */}
-        <View style={styles.toggleTrack}>
-          <TouchableOpacity
-            style={[styles.toggleOption, !isSignUp && styles.toggleOptionActive]}
-            onPress={() => switchMode('signin')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toggleLabel, !isSignUp && styles.toggleLabelActive]}>Sign In</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleOption, isSignUp && styles.toggleOptionActive]}
-            onPress={() => switchMode('signup')}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.toggleLabel, isSignUp && styles.toggleLabelActive]}>Create Account</Text>
-          </TouchableOpacity>
-        </View>
+        <FadeSlideIn index={1}>
+          <View style={styles.toggleTrack}>
+            <PressableScale
+              style={[styles.toggleOption, !isSignUp && styles.toggleOptionActive]}
+              onPress={() => switchMode('signin')}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in"
+            >
+              <AppText variant="label" style={!isSignUp ? styles.toggleActive : styles.toggleIdle}>
+                Sign In
+              </AppText>
+            </PressableScale>
+            <PressableScale
+              style={[styles.toggleOption, isSignUp && styles.toggleOptionActive]}
+              onPress={() => switchMode('signup')}
+              accessibilityRole="button"
+              accessibilityLabel="Create account"
+            >
+              <AppText variant="label" style={isSignUp ? styles.toggleActive : styles.toggleIdle}>
+                Create Account
+              </AppText>
+            </PressableScale>
+          </View>
+        </FadeSlideIn>
 
         {/* Auth Form Card */}
-        <View style={styles.card}>
-          <Animated.View style={[styles.formAnimated, animatedFormStyle]}>
-            <View style={styles.formIntro}>
-              <Text style={styles.formEyebrow}>{isSignUp ? 'WELCOME TO LEDGER' : 'SECURE ACCESS'}</Text>
-              <Text style={styles.formTitle}>{isSignUp ? 'Create your account' : 'Sign in to your ledger'}</Text>
-              <Text style={styles.formHint}>
-                {isSignUp ? 'Start with three receipt uploads included.' : 'Your expenses stay organized and ready.'}
-              </Text>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>EMAIL</Text>
-              <View style={styles.inputBox}>
-                <Mail size={15} color={Colors.textMuted} />
-                <TextInput
-                  style={styles.input}
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  autoCorrect={false}
-                  placeholder="you@example.com"
-                  placeholderTextColor={Colors.textMuted}
-                  returnKeyType="done"
-                />
+        <FadeSlideIn index={2}>
+          <View style={styles.card}>
+            <Animated.View style={[styles.formAnimated, animatedFormStyle]}>
+              <View style={styles.formIntro}>
+                <AppText variant="label" tone="accent" uppercase>
+                  {isSignUp ? 'Welcome to Ledger' : 'Secure access'}
+                </AppText>
+                <AppText variant="heading">
+                  {isSignUp ? 'Create your account' : 'Sign in to your ledger'}
+                </AppText>
+                <AppText variant="body" tone="muted">
+                  {isSignUp
+                    ? 'Start with three receipt uploads included.'
+                    : 'Your expenses stay organized and ready.'}
+                </AppText>
               </View>
+
+              <AppInput
+                label="Email"
+                icon={Mail}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoCorrect={false}
+                placeholder="you@example.com"
+                returnKeyType="next"
+              />
+
+              <AppInput
+                label="Password"
+                icon={Lock}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                placeholder={isSignUp ? 'At least 6 characters' : 'Enter your password'}
+                returnKeyType="done"
+                onSubmitEditing={handleAuth}
+              />
+
+              <AppButton
+                label={isSubmitting ? 'Please wait…' : isSignUp ? 'Create account' : 'Sign in'}
+                variant="accent"
+                full
+                loading={isSubmitting}
+                onPress={handleAuth}
+                style={styles.submit}
+              />
+            </Animated.View>
+
+            <View style={styles.dividerRow}>
+              <Divider style={styles.dividerLine} />
+              <AppText variant="caption" tone="muted" uppercase>
+                or
+              </AppText>
+              <Divider style={styles.dividerLine} />
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>PASSWORD</Text>
-              <View style={styles.inputBox}>
-                <Lock size={15} color={Colors.textMuted} />
-                <TextInput
-                  style={styles.input}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  placeholder={isSignUp ? 'At least 6 characters' : 'Enter your password'}
-                  placeholderTextColor={Colors.textMuted}
-                  returnKeyType="done"
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.loginBtn, isSubmitting && styles.loginBtnDisabled]}
-              onPress={handleAuth}
-              disabled={isSubmitting}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.loginBtnText}>
-                {isSubmitting ? 'PLEASE WAIT...' : isSignUp ? 'CREATE ACCOUNT' : 'SIGN IN'}
-              </Text>
-              {!isSubmitting && <ArrowRight size={15} color="#002111" />}
-            </TouchableOpacity>
-          </Animated.View>
-
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
+            <AppButton
+              label="Proceed as guest"
+              variant="ghost"
+              icon={Fingerprint}
+              full
+              onPress={handleGuest}
+            />
           </View>
-
-          <TouchableOpacity style={styles.guestBtn} onPress={handleGuest} activeOpacity={0.7}>
-            <Fingerprint size={16} color={Colors.textMuted} />
-            <Text style={styles.guestBtnText}>PROCEED AS GUEST</Text>
-          </TouchableOpacity>
-        </View>
+        </FadeSlideIn>
 
         {/* Security Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            🔒 SOC2 Type II Certified · 256-Bit Hardware Enclave Encryption
-          </Text>
-        </View>
+        <FadeSlideIn index={3}>
+          <AppText variant="caption" tone="onDarkMuted" center style={styles.footer}>
+            SOC2 Type II Certified · 256-bit hardware enclave encryption
+          </AppText>
+        </FadeSlideIn>
       </View>
     </SafeAreaView>
   );
@@ -196,202 +204,71 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.spruce,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: Spacing.xl,
     justifyContent: 'center',
-    gap: 20,
+    gap: Spacing.lg,
   },
   brandSection: {
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.sm,
   },
   logoBadge: {
     width: 58,
     height: 58,
-    borderRadius: 18,
-    backgroundColor: Colors.primary,
+    borderRadius: Radius.surface,
+    backgroundColor: Colors.mint,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
-  logoGlow: {
-    position: 'absolute',
-    width: 58,
-    height: 58,
-    borderRadius: 18,
-    backgroundColor: Colors.primaryLight,
-    opacity: 0.18,
-  },
-  brandTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: Colors.textPrimary,
-    letterSpacing: 5,
-    fontFamily: 'Menlo',
-  },
-  brandSub: {
-    fontSize: 11,
-    color: Colors.textMuted,
-    fontFamily: 'Menlo',
-    textAlign: 'center',
-  },
+  brandTitle: { letterSpacing: 5 },
   toggleTrack: {
     flexDirection: 'row',
-    backgroundColor: Colors.surfaceElevated,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
+    backgroundColor: Colors.spruceElevated,
+    borderRadius: Radius.pill,
     padding: 4,
     gap: 4,
   },
   toggleOption: {
     flex: 1,
-    height: 36,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 9,
+    borderRadius: Radius.pill,
   },
   toggleOptionActive: {
-    backgroundColor: Colors.surfaceCard,
-    borderWidth: 1,
-    borderColor: Colors.borderAccent,
+    backgroundColor: Colors.mint,
   },
-  toggleLabel: {
-    fontFamily: 'Menlo',
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.textMuted,
-    letterSpacing: 0.3,
-  },
-  toggleLabelActive: {
-    color: Colors.primaryLight,
-  },
+  toggleActive: { color: '#00181A', fontWeight: '700' },
+  toggleIdle: { color: Colors.onSpruceMuted },
   card: {
     backgroundColor: Colors.surfaceCard,
-    borderRadius: 18,
-    padding: 20,
+    borderRadius: Radius.surface,
+    padding: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.borderLight,
-    gap: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 10,
+    gap: Spacing.base,
   },
   formAnimated: {
-    gap: 14,
+    gap: Spacing.base,
   },
   formIntro: {
-    gap: 4,
+    gap: Spacing.xs,
   },
-  formEyebrow: {
-    color: Colors.primaryLight,
-    fontFamily: 'Menlo',
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-  },
-  formTitle: {
-    color: Colors.textPrimary,
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  formHint: {
-    color: Colors.textMuted,
-    fontFamily: 'Menlo',
-    fontSize: 11,
-    lineHeight: 17,
-  },
-  inputGroup: {
-    gap: 6,
-  },
-  inputLabel: {
-    fontSize: 9,
-    fontFamily: 'Menlo',
-    color: Colors.textMuted,
-    letterSpacing: 0.8,
-    fontWeight: '600',
-  },
-  inputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surfaceElevated,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    gap: 10,
-    height: 46,
-  },
-  input: {
-    flex: 1,
-    color: Colors.textPrimary,
-    fontSize: 14,
-    fontFamily: 'Menlo',
-  },
-  loginBtn: {
-    backgroundColor: Colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 11,
-    gap: 8,
-    marginTop: 2,
-  },
-  loginBtnDisabled: {
-    opacity: 0.6,
-  },
-  loginBtnText: {
-    color: '#002111',
-    fontWeight: '800',
-    fontFamily: 'Menlo',
-    fontSize: 12,
-    letterSpacing: 0.6,
-  },
+  submit: { marginTop: Spacing.xs },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: Spacing.md,
   },
   dividerLine: {
     flex: 1,
-    height: 1,
-    backgroundColor: Colors.borderLight,
-  },
-  dividerText: {
-    fontSize: 9,
-    fontFamily: 'Menlo',
-    color: Colors.textMuted,
-    letterSpacing: 1,
-  },
-  guestBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 10,
-  },
-  guestBtnText: {
-    color: Colors.textMuted,
-    fontFamily: 'Menlo',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.5,
   },
   footer: {
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 10,
-    color: Colors.textMuted,
-    fontFamily: 'Menlo',
-    textAlign: 'center',
     lineHeight: 16,
   },
 });

@@ -33,31 +33,32 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerStyle: {
-          backgroundColor: '#0E1321',
+          backgroundColor: Colors.spruce,
           elevation: 0,
           shadowOpacity: 0,
           borderBottomWidth: 1,
-          borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+          borderBottomColor: 'rgba(255, 252, 246, 0.08)',
         },
-        headerTintColor: '#54E9A1',
+        headerTintColor: Colors.mint,
         headerTitleStyle: {
           fontWeight: '700',
           fontSize: 20,
           letterSpacing: -0.5,
         },
         tabBarStyle: {
-          backgroundColor: '#161B2A',
-          borderTopColor: 'rgba(255, 255, 255, 0.05)',
+          backgroundColor: Colors.spruce,
+          borderTopColor: 'rgba(255, 252, 246, 0.08)',
+          borderTopWidth: 1,
           height: Platform.OS === 'ios' ? 88 : 68,
           paddingBottom: Platform.OS === 'ios' ? 28 : 12,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: '#2ECC87',
-        tabBarInactiveTintColor: '#869489',
+        tabBarActiveTintColor: Colors.mint,
+        tabBarInactiveTintColor: Colors.onSpruceMuted,
         tabBarLabelStyle: {
-          fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
           fontSize: 10,
           textTransform: 'uppercase',
+          letterSpacing: 0.6,
           fontWeight: '600',
         },
       }}

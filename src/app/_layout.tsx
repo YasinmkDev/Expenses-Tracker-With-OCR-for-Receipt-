@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View, StyleSheet, Image, Animated, Dimensions } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LedgerProvider } from '@/store/ledgerStore';
+import { Colors } from '@/constants/theme';
 
 const splashImage = require('../../assets/images/appSplashScreenFullScreenImage.png');
 
@@ -30,11 +31,11 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <LedgerProvider>
         <View style={styles.container}>
-          <StatusBar style="light" backgroundColor="#0E1321" />
+          <StatusBar style="dark" backgroundColor={Colors.background} />
           <Stack
             screenOptions={{
               headerShown: false,
-              contentStyle: { backgroundColor: '#0E1321' },
+              contentStyle: { backgroundColor: Colors.background },
               animation: 'fade',
             }}
           >
@@ -97,7 +98,7 @@ const { width, height } = Dimensions.get('screen');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0E1321',
+    backgroundColor: Colors.spruce,
   },
   fullScreenImage: {
     width: width,
